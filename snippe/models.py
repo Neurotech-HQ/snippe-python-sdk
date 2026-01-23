@@ -77,12 +77,21 @@ class Payment:
     @classmethod
     def from_dict(cls, data: dict) -> "Payment":
         """Create Payment from API response dict."""
+        # Handle nested amount structure from some API responses
+        amount_data = data.get("amount")
+        if isinstance(amount_data, dict):
+            amount = amount_data.get("value", 0)
+            currency = amount_data.get("currency", data.get("currency", "TZS"))
+        else:
+            amount = amount_data if amount_data is not None else 0
+            currency = data.get("currency", "TZS")
+
         return cls(
-            reference=data["reference"],
-            status=data["status"],
-            amount=data["amount"],
-            currency=data["currency"],
-            payment_type=data["payment_type"],
+            reference=data.get("reference", ""),
+            status=data.get("status", "pending"),
+            amount=amount,
+            currency=currency,
+            payment_type=data.get("payment_type", ""),
             expires_at=data.get("expires_at"),
             payment_url=data.get("payment_url"),
             qr_code=data.get("qr_code"),
