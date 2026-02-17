@@ -9,7 +9,26 @@ from .types import Currency, PaymentStatus, PaymentType, WebhookEvent
 
 @dataclass
 class Customer:
-    """Customer information."""
+    """Customer information.
+    Args:
+        firstname: Customer's first name (required)
+        lastname: Customer's last name (required)
+        email: Customer's email address (optional)
+        address: Street address (optional, recommended for card payments)
+        city: City (optional, recommended for card payments)
+        state: State or region (optional)
+        postcode: Postal code (optional)
+        country: Country code (optional, e.g., "TZ" for Tanzania)
+        phone: Customer's phone number (optional)
+    
+    Example:
+        >>> customer = Customer(
+        ...     firstname="John",
+        ...     lastname="Doe",
+        ...     email="john@example.com",
+        ...     phone="0712345678"
+        ... )
+    """
     firstname: str
     lastname: str
     email: Optional[str] = None
@@ -40,7 +59,21 @@ class Customer:
 
 @dataclass
 class PaymentDetails:
-    """Payment amount details."""
+    """Payment amount details.
+    
+    Args:
+        amount: Amount in smallest currency unit (e.g., 1000 = 1000 TZS)
+        currency: Currency code (TZS, KES, UGX)
+        callback_url: URL to redirect after payment (optional)
+    
+    Example:
+        >>> details = PaymentDetails(
+        ...     amount=5000,
+        ...     currency="TZS",
+        ...     callback_url="https://myapp.com/callback"
+        ... )
+
+    """
     amount: int
     currency: Currency
     callback_url: Optional[str] = None
@@ -55,7 +88,35 @@ class PaymentDetails:
 
 @dataclass
 class Payment:
-    """Payment response from API."""
+    """Payment response from API.
+
+    Args:
+        reference: Unique payment reference for status checks
+        status: Current payment status (pending, completed, failed, expired, voided)
+        amount: Amount in smallest currency unit
+        currency: Currency code (TZS, KES, UGX)
+        payment_type: Type of payment (mobile, card, dynamic-qr)
+        expires_at: When the payment expires (ISO 8601 timestamp)
+        payment_url: URL for card payment redirect
+        qr_code: QR code data (legacy field)
+        payment_qr_code: Base64-encoded QR code image for QR payments
+        payment_token: Token embedded in QR code
+        id: Internal payment ID
+        psp_reference: Payment Service Provider reference
+        fee_amount: Transaction fee amount
+        net_amount: Amount after fees
+        customer: Customer information as dict
+        metadata: Custom key-value pairs from request
+        created_at: Creation timestamp (ISO 8601)
+    
+    Example:
+        >>> payment = client.create_mobile_payment(...)
+        >>> print(f"Ref: {payment.reference}, Status: {payment.status}")
+        >>> if payment.payment_qr_code:
+        ...     # Display QR code to customer
+        ...     pass
+    
+    """
     reference: str
     status: PaymentStatus
     amount: int
@@ -109,7 +170,20 @@ class Payment:
 
 @dataclass
 class PaymentList:
-    """Paginated list of payments."""
+    """Paginated list of payments.
+
+    Args:
+        payments: List of Payment objects
+        limit: Number of results per page requested
+        offset: Pagination offset used
+    
+    Example:
+        >>> result = client.list_payments(limit=10, offset=0)
+        >>> print(f"Showing {len(result.payments)} payments")
+        >>> for payment in result.payments:
+        ...     print(f"{payment.reference}: {payment.status}")
+    
+    """
     payments: list[Payment]
     limit: int
     offset: int
@@ -126,7 +200,19 @@ class PaymentList:
 
 @dataclass
 class Balance:
-    """Account balance."""
+    """Account balance.
+
+    Args:
+        available_balance: Amount available for withdrawal/use
+        balance: Total account balance (including pending)
+        currency: Currency code (TZS, KES, UGX)
+    
+    Example:
+        >>> balance = client.get_balance()
+        >>> print(f"Available: {balance.available_balance} {balance.currency}")
+        >>> print(f"Total: {balance.balance} {balance.currency}")
+    
+    """
     available_balance: int
     balance: int
     currency: Currency
@@ -143,7 +229,28 @@ class Balance:
 
 @dataclass
 class WebhookPayload:
-    """Webhook event payload."""
+    """Webhook event payload.
+    
+    Args:
+        event: Webhook event type (payment.completed, payment.failed, etc.)
+        reference: Payment reference
+        status: Payment status
+        amount: Amount details as dict (value and currency)
+        payment_channel: Channel used for payment (e.g., "M-PESA", "CARD")
+        payment_fee: Fee charged for the transaction
+        customer: Customer information as dict
+        metadata: Custom key-value pairs from request
+        completed_at: When payment completed (if applicable)
+        created_at: When payment was created
+        timestamp: Webhook timestamp for verification
+    
+    Example:
+        >>> payload = verify_webhook(body, signature, timestamp, signing_key)
+        >>> if payload.event == "payment.completed":
+        ...     print(f"Payment {payload.reference} completed!")
+        ...     print(f"Channel: {payload.payment_channel}")
+        ...     print(f"Fee: {payload.payment_fee}")
+    """
     event: WebhookEvent
     reference: str
     status: PaymentStatus

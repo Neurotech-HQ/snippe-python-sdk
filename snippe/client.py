@@ -27,9 +27,19 @@ class Snippe:
         >>> payment = client.create_mobile_payment(
         ...     amount=1000,
         ...     currency="TZS",
-        ...     phone_number="0788500000",
+        ...     phone_number="0712345678",
         ...     customer=Customer(firstname="John", lastname="Doe")
         ... )
+
+    Args:
+        api_key: Your Snippe API key
+        base_url: Override the base URL (optional, defaults to https://api.snippe.sh/api/v1)
+        timeout: Request timeout in seconds (default: 30.0)
+    
+    Example with context manager:
+        >>> with Snippe("your_api_key") as client:
+        ...     payment = client.create_mobile_payment(...)
+
     """
 
     BASE_URL = "https://api.snippe.sh/api/v1"
@@ -146,6 +156,15 @@ class Snippe:
 
         Returns:
             Payment object with reference and status
+
+        Example:
+            >>> payment = client.create_mobile_payment(
+            ...     amount=1000,
+            ...     currency="TZS",
+            ...     phone_number="0712345678",
+            ...     customer=Customer(firstname="John", lastname="Doe")
+            ... )
+
         """
         return self._create_payment(
             payment_type="mobile",
@@ -187,6 +206,22 @@ class Snippe:
 
         Returns:
             Payment object with payment_url for redirect
+
+        Example:
+            >>> payment = client.create_card_payment(
+            ...     amount=50000,
+            ...     currency="TZS",
+            ...     phone_number="0712345678",
+            ...     customer=Customer(
+            ...         firstname="John",
+            ...         lastname="Doe",
+            ...         address="123 Main Street",
+            ...         city="Dar es Salaam",
+            ...         country="TZ"
+            ...     ),
+            ...     callback_url="https://myapp.com/callback"
+            ... )
+            >>> print(payment.payment_url)
         """
         return self._create_payment(
             payment_type="card",
@@ -228,6 +263,15 @@ class Snippe:
 
         Returns:
             Payment object with qr_code and payment_token
+
+        Example:
+            >>> payment = client.create_qr_payment(
+            ...     amount=25000,
+            ...     currency="TZS",
+            ...     phone_number="0712345678",
+            ...     customer=Customer(firstname="John", lastname="Doe")
+            ... )
+            >>> # Display payment.payment_qr_code to customer
         """
         return self._create_payment(
             payment_type="dynamic-qr",
@@ -250,6 +294,13 @@ class Snippe:
 
         Returns:
             Payment object with current status
+
+        Example:
+            >>> payment = client.get_payment("payment_ref_123")
+            >>> print(f"Status: {payment.status}")
+            >>> if payment.status == "completed":
+            ...     # Fulfill order
+            ...     pass
         """
         response = self._client.get(f"/payments/{reference}")
         data = self._handle_response(response)
@@ -269,6 +320,12 @@ class Snippe:
 
         Returns:
             PaymentList with payments and pagination info
+
+        Example:
+            >>> result = client.list_payments(limit=10, offset=0)
+            >>> for payment in result.payments:
+            ...     print(f"{payment.reference}: {payment.status}")
+            >>> print(f"Total shown: {len(result.payments)}")
         """
         response = self._client.get(
             "/payments",
@@ -283,13 +340,28 @@ class Snippe:
 
         Returns:
             Balance object with available and pending amounts
+
+        Example:
+            >>> balance = client.get_balance()
+            >>> print(f"Available: {balance.available_balance} {balance.currency}")
+            >>> print(f"Total: {balance.balance} {balance.currency}")
         """
         response = self._client.get("/payments/balance")
         data = self._handle_response(response)
         return Balance.from_dict(data)
 
     def close(self) -> None:
-        """Close the HTTP client."""
+        """
+        Close the HTTP client.
+
+        Should be called when done using the client to free resources.
+        Not needed when using the context manager.
+
+        Example:
+            >>> client = Snippe("api_key")
+            >>> # ... do work ...
+            >>> client.close()
+        """
         self._client.close()
 
     def __enter__(self) -> "Snippe":
@@ -303,11 +375,24 @@ class AsyncSnippe:
     """
     Async Snippe Payment API client.
 
+    For use with asyncio-based frameworks like FastAPI, aiohttp, etc.
+
     Usage:
         >>> from snippe import AsyncSnippe, Customer
         >>> async with AsyncSnippe("your_api_key") as client:
-        ...     payment = await client.create_mobile_payment(...)
+        ...     payment = await client.create_mobile_payment(
+        ...         amount=1000,
+        ...         currency="TZS",
+        ...         phone_number="0712345678",
+        ...         customer=Customer(firstname="John", lastname="Doe")
+        ...     )
+
+    Args:
+        api_key: Your Snippe API key
+        base_url: Override the base URL (optional)
+        timeout: Request timeout in seconds (default: 30.0)
     """
+
 
     BASE_URL = "https://api.snippe.sh/api/v1"
 
