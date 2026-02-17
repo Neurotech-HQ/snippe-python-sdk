@@ -24,6 +24,9 @@ from .exceptions import (
     SnippeError,
     ValidationError,
     WebhookVerificationError,
+    ConflictError,
+    ForbiddenError,
+    UnprocessableEntityError
 )
 
 from .models import (
@@ -73,6 +76,9 @@ __all__ = [
     "RateLimitError",
     "ServerError",
     "WebhookVerificationError",
+    "ForbiddenError", 
+    "ConflictError",
+    "UnprocessableEntityError",
     #payouts
     "Payout",
     "PayoutList", 

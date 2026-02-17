@@ -57,3 +57,18 @@ class ServerError(SnippeError):
 class WebhookVerificationError(SnippeError):
     """Invalid webhook signature."""
     pass
+
+
+class ForbiddenError(SnippeError):
+    """Authenticated but not authorized to access resource (403)."""
+    pass
+
+
+class ConflictError(SnippeError):
+    """Resource already exists or state conflict (409)."""
+    pass
+
+
+class UnprocessableEntityError(SnippeError):
+    """Idempotency key mismatch or validation error (422)."""
+    pass

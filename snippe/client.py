@@ -7,10 +7,13 @@ import httpx
 
 from .exceptions import (
     AuthenticationError,
+    ConflictError,
+    ForbiddenError,
     NotFoundError,
     RateLimitError,
     ServerError,
     SnippeError,
+    UnprocessableEntityError,
     ValidationError,
 )
 from .models import (
@@ -102,6 +105,10 @@ class Snippe:
             raise AuthenticationError(message, code, error_code)
         elif code == 400:
             raise ValidationError(message, code, error_code)
+        elif code == 409:
+            raise ConflictError(message, code, error_code)
+        elif code == 422:
+            raise UnprocessableEntityError(message, code, error_code)
         elif code == 404:
             raise NotFoundError(message, code, error_code)
         elif code == 429:
