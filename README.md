@@ -114,6 +114,94 @@ balance = client.get_balance()
 print(f"Available: {balance.available_balance} {balance.currency}")
 ```
 
+## Disbursements (Payouts)
+
+Send money to mobile money accounts and bank accounts.
+
+## Mobile Money Payouts
+
+Send money to Airtel Money, Mixx by Yas (Tigo), and HaloPesa.
+
+Calculate fee first (recommended)
+
+```python
+fee = client.calculate_payout_fee(amount=5000)
+print(f"Fee: {fee.fee_amount} {fee.currency}")
+print(f"Total to deduct: {fee.total_amount} {fee.currency}")
+```
+
+Create mobile money payout
+
+```python
+payout = client.create_mobile_payout(
+    amount=5000,
+    recipient_name="John Doe",
+    recipient_phone="255781000000",  # Format: 255XXXXXXXXX
+    narration="Salary payment January 2026",
+    webhook_url="https://yourapp.com/webhooks",
+    metadata={"employee_id": "EMP-001"},
+    idempotency_key="unique_id_123"  # Prevent duplicates
+)
+
+print(f"Payout reference: {payout.reference}")
+print(f"Status: {payout.status}")
+print(f"Amount: {payout.amount.value} {payout.amount.currency}")
+print(f"Fee: {payout.fees.value} {payout.fees.currency}")
+```
+
+## Bank Transfer Payouts
+
+Send money to 40+ Tanzanian banks including CRDB, NMB, NBC, and ABSA.
+
+```python
+payout = client.create_bank_payout(
+    amount=50000,
+    recipient_name="John Doe",
+    recipient_bank="CRDB",  # Bank code from supported banks list
+    recipient_account="0211049375",
+    narration="Invoice payment INV-2026-001",
+    webhook_url="https://yourapp.com/webhooks",
+    metadata={"invoice_id": "INV-2026-001"},
+)
+
+print(f"Reference: {payout.reference}")
+print(f"Status: {payout.status}")
+```
+
+List Payouts
+
+```python
+result = client.list_payouts(limit=10, offset=0)
+print(f"Total payouts: {result.total}")
+for payout in result.items:
+    print(f"{payout.reference}: {payout.status} - {payout.amount.value} {payout.amount.currency}")
+Get Payout Status
+python
+payout = client.get_payout("payout_reference")
+print(f"Status: {payout.status}")
+if payout.status == "failed":
+    print(f"Reason: {payout.failure_reason}")
+```
+
+Get Payout Status
+
+```python
+payout = client.get_payout("payout_reference")
+print(f"Status: {payout.status}")
+if payout.status == "failed":
+    print(f"Reason: {payout.failure_reason}")
+```
+
+
+## Payout Statuses
+| Status        | Description                                   |
+|---------------|-----------------------------------------------|
+| `pending`     | Payout created, awaiting processing           |
+| `completed`   | Payout successful, recipient received funds   |
+| `failed`      | Payout failed (check failure_reason)          |
+| `reversed`    | Payout was reversed after completion          |
+
+
 ## Webhooks
 
 Verify and parse webhook events from Snippe.
@@ -136,6 +224,10 @@ try:
     elif payload.event == "payment.failed":
         print(f"Payment {payload.reference} failed")
         # Notify customer
+    elif payload.event == "payout.completed":
+        print(f"Payout {payload.reference} completed!")
+    elif payload.event == "payout.failed":
+        print(f"Payout {payload.reference} failed")
 
 except WebhookVerificationError as e:
     print(f"Invalid webhook: {e}")
@@ -190,6 +282,9 @@ from snippe import (
     AuthenticationError,
     ValidationError,
     NotFoundError,
+    ForbiddenError,
+    ConflictError,
+    UnprocessableEntityError,
     RateLimitError,
     ServerError,
 )
@@ -202,6 +297,12 @@ except ValidationError as e:
     print(f"Invalid request: {e.message}")
 except NotFoundError:
     print("Payment not found")
+except ForbiddenError:
+    print("Not authorized for this operation")
+except ConflictError:
+    print("Resource already exists")
+except UnprocessableEntityError:
+    print("Idempotency key mismatch")
 except RateLimitError:
     print("Too many requests, slow down")
 except ServerError:
