@@ -13,8 +13,23 @@ from .exceptions import (
     SnippeError,
     ValidationError,
 )
-from .models import Balance, Customer, Payment, PaymentDetails, PaymentList
-from .types import Currency, PaymentType
+from .models import (
+    Balance, 
+    Customer, 
+    Payment, 
+    PaymentDetails, 
+    PaymentList,    
+    Payout,
+    PayoutList,
+    PayoutFee,
+    PayoutRecipient
+    )
+from .types import (
+    Currency, 
+    PaymentType,
+    PayoutChannel as PayoutChannelType,
+    BankCode
+    )
 
 
 class Snippe:
@@ -350,6 +365,193 @@ class Snippe:
         data = self._handle_response(response)
         return Balance.from_dict(data)
 
+    def create_mobile_payout(
+        self,
+        amount: int,
+        recipient_name: str,
+        recipient_phone: str,
+        narration: Optional[str] = None,
+        webhook_url: Optional[str] = None,
+        metadata: Optional[dict] = None,
+        idempotency_key: Optional[str] = None,
+        ) -> Payout:
+        """
+        Send money to a mobile money account.
+        
+        Supports Airtel Money, Mixx by Yas (Tigo), and HaloPesa.
+        Funds are deducted from your available balance immediately.
+        
+        Args:
+            amount: Amount in smallest currency unit (e.g., 5000 = 5,000 TZS)
+            recipient_name: Full name of the recipient
+            recipient_phone: Phone number in format 255XXXXXXXXX (e.g., 255781000000)
+            narration: Description or reason for the payout (optional)
+            webhook_url: URL to receive webhook notifications
+            metadata: Custom key-value pairs for your reference (optional)
+            idempotency_key: Unique key to prevent duplicate payouts
+        
+        Returns:
+            Payout object with reference and status
+        """
+        payload = {
+            "amount": amount,
+            "channel": "mobile",
+            "recipient_name": recipient_name,
+            "recipient_phone": recipient_phone,
+        }
+        
+        if narration:
+            payload["narration"] = narration
+        if webhook_url:
+            payload["webhook_url"] = webhook_url
+        if metadata:
+            payload["metadata"] = metadata
+            
+        headers = {}
+        if idempotency_key:
+            headers["Idempotency-Key"] = idempotency_key
+            
+        response = self._client.post("/payouts/send", json=payload, headers=headers)
+        data = self._handle_response(response)
+        return Payout.from_dict(data)
+
+
+    def calculate_payout_fee(self, amount: int) -> PayoutFee:
+        """
+        Calculate fee for a payout before sending.
+        
+        Always calculate fees before creating payouts to ensure you have sufficient balance.
+        
+        Args:
+            amount: Amount in smallest currency unit to calculate fee for
+            
+        Returns:
+            PayoutFee object with:
+            - amount: Original amount
+            - fee_amount: Fee amount
+            - total_amount: Amount + fee
+            - currency: Currency code
+            
+        Example:
+            >>> fee = client.calculate_payout_fee(amount=5000)
+            >>> print(f"Fee: {fee.fee_amount} {fee.currency}")
+            >>> print(f"Total to deduct: {fee.total_amount} {fee.currency}")
+        """
+        response = self._client.get("/payouts/fee", params={"amount": amount})
+        data = self._handle_response(response)
+        return PayoutFee.from_dict(data)
+
+    def list_payouts(
+        self,
+        limit: int = 20,
+        offset: int = 0,
+        ) -> PayoutList:
+        """
+        List all payouts for your account with pagination.
+        
+        Args:
+            limit: Results per page (max 100, default: 20)
+            offset: Pagination offset (default: 0)
+            
+        Returns:
+            PayoutList object with:
+            - items: List of Payout objects
+            - total: Total number of payouts
+            - limit: Results per page requested
+            - offset: Pagination offset used
+            
+        Example:
+            >>> result = client.list_payouts(limit=10, offset=0)
+            >>> print(f"Total payouts: {result.total}")
+            >>> for payout in result.items:
+            ...     print(f"{payout.reference}: {payout.status}")
+        """
+        response = self._client.get(
+            "/payouts",
+            params={"limit": limit, "offset": offset},
+        )
+        data = self._handle_response(response)
+        return PayoutList.from_dict(data)
+    
+    
+    def get_payout(self, reference: str) -> Payout:
+        """
+        Get payout status by reference.
+        
+        Args:
+            reference: Payout reference from create response
+            
+        Returns:
+            Payout object with current status
+            
+        Example:
+            >>> payout = client.get_payout("payout_ref_123")
+            >>> print(f"Status: {payout.status}")
+            >>> if payout.status == "completed":
+            ...     print(f"Completed at: {payout.completed_at}")
+            ... elif payout.status == "failed":
+            ...     print(f"Failed: {payout.failure_reason}")
+        """
+        response = self._client.get(f"/payouts/{reference}")
+        data = self._handle_response(response)
+        return Payout.from_dict(data)
+
+
+
+    def create_bank_payout(
+        self,
+        amount: int,
+        recipient_name: str,
+        recipient_bank: BankCode,
+        recipient_account: str,
+        narration: Optional[str] = None,
+        webhook_url: Optional[str] = None,
+        metadata: Optional[dict] = None,
+        idempotency_key: Optional[str] = None,
+    ) -> Payout:
+        """
+        Send money to a bank account.
+        
+        Supports 40+ Tanzanian banks including CRDB, NMB, NBC, ABSA.
+        Funds are deducted from your available balance immediately.
+        
+        Args:
+            amount: Amount in smallest currency unit
+            recipient_name: Full name or company name
+            recipient_bank: Bank code (e.g., "CRDB", "NMB", "ABSA")
+            recipient_account: Bank account number
+            narration: Description/reason for payout
+            webhook_url: URL for webhook notifications
+            metadata: Custom key-value pairs
+            idempotency_key: Unique key to prevent duplicates
+        
+        Returns:
+            Payout object with reference and status
+        """
+        payload = {
+            "amount": amount,
+            "channel": "bank",
+            "recipient_name": recipient_name,
+            "recipient_bank": recipient_bank,
+            "recipient_account": recipient_account,
+        }
+        
+        if narration:
+            payload["narration"] = narration
+        if webhook_url:
+            payload["webhook_url"] = webhook_url
+        if metadata:
+            payload["metadata"] = metadata
+            
+        headers = {}
+        if idempotency_key:
+            headers["Idempotency-Key"] = idempotency_key
+            
+        response = self._client.post("/payouts/send", json=payload, headers=headers)
+        data = self._handle_response(response)
+        return Payout.from_dict(data)
+
+
     def close(self) -> None:
         """
         Close the HTTP client.
@@ -579,3 +781,5 @@ class AsyncSnippe:
 
     async def __aexit__(self, *args) -> None:
         await self.close()
+
+
