@@ -193,7 +193,7 @@ if payout.status == "failed":
 ```
 
 
-## Payout Statuses
+## Payout Statu
 | Status        | Description                                   |
 |---------------|-----------------------------------------------|
 | `pending`     | Payout created, awaiting processing           |
