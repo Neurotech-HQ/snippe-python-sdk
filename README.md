@@ -1,5 +1,10 @@
 # Snippe Python SDK
 
+[![PyPI version](https://img.shields.io/pypi/v/snippe)](https://pypi.org/project/snippe/)
+[![PyPI downloads](https://img.shields.io/pypi/dm/snippe)](https://pypi.org/project/snippe/)
+[![Python versions](https://img.shields.io/pypi/pyversions/snippe)](https://pypi.org/project/snippe/)
+[![License](https://img.shields.io/pypi/l/snippe)](https://pypi.org/project/snippe/)
+
 Official Python SDK for [Snippe Payment API](https://snippe.sh) - Accept payments via mobile money, card, and QR code in East Africa.
 
 ## Installation
