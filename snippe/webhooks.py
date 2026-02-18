@@ -13,11 +13,19 @@ class WebhookHandler:
     """
     Webhook handler for verifying and parsing Snippe webhooks.
 
+    Verifies HMAC-SHA256 signatures and prevents replay attacks using timestamps.
+
+    Args:
+        signing_key: Your webhook signing key from the Snippe dashboard
+        tolerance: Max age in seconds for webhook (default: 300 seconds / 5 minutes)
+
     Usage:
         >>> from snippe import WebhookHandler
         >>> handler = WebhookHandler("your_webhook_signing_key")
+        >>> 
+        >>> # In your webhook endpoint
         >>> payload = handler.verify_and_parse(
-        ...     body=request.body,
+        ...     body=request.body.decode(),
         ...     signature=request.headers["X-Webhook-Signature"],
         ...     timestamp=request.headers["X-Webhook-Timestamp"]
         ... )
@@ -32,22 +40,29 @@ class WebhookHandler:
         Initialize webhook handler.
 
         Args:
-            signing_key: Your webhook signing key
+            signing_key: Your webhook signing key from the Snippe dashboard
             tolerance: Max age in seconds for webhook (default: 5 minutes)
+                    Prevents replay attacks by rejecting old webhooks
         """
         self.signing_key = signing_key
         self.tolerance = tolerance
 
     def compute_signature(self, payload: str, timestamp: str) -> str:
         """
-        Compute HMAC-SHA256 signature for payload.
+        Combines timestamp and payload with a dot, then signs with the signing key.
 
         Args:
             payload: Raw request body as string
             timestamp: Unix timestamp from X-Webhook-Timestamp header
 
         Returns:
-            Hex-encoded signature
+            Hex-encoded HMAC-SHA256 signature
+
+        Example:
+            >>> signature = handler.compute_signature(
+            ...     payload='{"event":"payment.completed"}',
+            ...     timestamp="1700000000"
+            ... )
         """
         message = f"{timestamp}.{payload}"
         signature = hmac.new(
@@ -72,10 +87,21 @@ class WebhookHandler:
             timestamp: Value from X-Webhook-Timestamp header
 
         Returns:
-            True if signature is valid
+            True if signature is valid and timestamp is fresh
 
         Raises:
-            WebhookVerificationError: If signature is invalid or expired
+            WebhookVerificationError: If signature is invalid or timestamp expired
+        
+        Example:
+            >>> try:
+            ...     handler.verify_signature(
+            ...         body=request.body.decode(),
+            ...         signature=request.headers["X-Webhook-Signature"],
+            ...         timestamp=request.headers["X-Webhook-Timestamp"]
+            ...     )
+            ...     print("Webhook verified")
+            ... except WebhookVerificationError as e:
+            ...     print(f"Verification failed: {e}")
         """
         # Check timestamp to prevent replay attacks
         try:
@@ -97,11 +123,21 @@ class WebhookHandler:
         """
         Parse webhook payload without verification.
 
+        Use this if you've already verified the signature separately.
+        Converts the webhook JSON data into a WebhookPayload object.
+
         Args:
-            data: Parsed JSON payload
+            data: Parsed JSON payload from webhook
 
         Returns:
-            WebhookPayload object
+            WebhookPayload object with typed fields
+
+        Example:
+            >>> # If you verified manually
+            >>> data = json.loads(request.body)
+            >>> payload = handler.parse(data)
+            >>> if payload.event == "payment.completed":
+            ...     print(f"Payment {payload.reference} completed")
         """
         return WebhookPayload.from_dict(data)
 
@@ -112,7 +148,10 @@ class WebhookHandler:
         timestamp: str,
     ) -> WebhookPayload:
         """
-        Verify signature and parse webhook payload.
+        Verify signature and parse webhook payload in one step.
+
+        This is the main method you'll use in your webhook endpoint.
+        Verifies the signature, then parses the payload.
 
         Args:
             body: Raw request body as string
@@ -123,7 +162,32 @@ class WebhookHandler:
             WebhookPayload object
 
         Raises:
-            WebhookVerificationError: If signature is invalid or expired
+            WebhookVerificationError: If signature is invalid or timestamp expired
+
+        Example:
+            >>> from snippe import WebhookHandler
+            >>> 
+            >>> handler = WebhookHandler("your_webhook_signing_key")
+            >>> 
+            >>> # In your Flask/FastAPI/Django endpoint
+            >>> @app.post("/webhooks/snippe")
+            ... def webhook(request):
+            ...     try:
+            ...         payload = handler.verify_and_parse(
+            ...             body=request.body.decode(),
+            ...             signature=request.headers["X-Webhook-Signature"],
+            ...             timestamp=request.headers["X-Webhook-Timestamp"]
+            ...         )
+            ...         
+            ...         if payload.event == "payment.completed":
+            ...             # Update order status
+            ...             order_id = payload.metadata.get("order_id")
+            ...             print(f"Order {order_id} paid")
+            ...         
+            ...         return {"status": "ok"}
+            ...         
+            ...     except WebhookVerificationError as e:
+            ...         return {"error": str(e)}, 400
         """
         import json
 
@@ -142,6 +206,9 @@ def verify_webhook(
     """
     Convenience function to verify and parse a webhook.
 
+    This is a one-liner alternative to using the WebhookHandler class.
+    Creates a temporary handler and verifies the webhook in one step.
+
     Args:
         body: Raw request body as string
         signature: Value from X-Webhook-Signature header
@@ -153,7 +220,24 @@ def verify_webhook(
         WebhookPayload object
 
     Raises:
-        WebhookVerificationError: If signature is invalid or expired
+        WebhookVerificationError: If signature is invalid or timestamp expired
+    
+    Example:
+        >>> from snippe import verify_webhook, WebhookVerificationError
+        >>> 
+        >>> try:
+        ...     payload = verify_webhook(
+        ...         body=request.body.decode(),
+        ...         signature=request.headers["X-Webhook-Signature"],
+        ...         timestamp=request.headers["X-Webhook-Timestamp"],
+        ...         signing_key="your_webhook_signing_key"
+        ...     )
+        ...     
+        ...     if payload.event == "payment.completed":
+        ...         print(f"Payment {payload.reference} completed!")
+        ...         
+        ... except WebhookVerificationError as e:
+        ...     print(f"Invalid webhook: {e}")
     """
     handler = WebhookHandler(signing_key, tolerance)
     return handler.verify_and_parse(body, signature, timestamp)

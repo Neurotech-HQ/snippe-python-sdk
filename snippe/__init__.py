@@ -24,7 +24,11 @@ from .exceptions import (
     SnippeError,
     ValidationError,
     WebhookVerificationError,
+    ConflictError,
+    ForbiddenError,
+    UnprocessableEntityError
 )
+
 from .models import (
     Balance,
     Customer,
@@ -32,7 +36,15 @@ from .models import (
     PaymentDetails,
     PaymentList,
     WebhookPayload,
+    Payout,
+    PayoutList,
+    PayoutFee,
+    PayoutRecipient,
+    PayoutChannel,
+    PayoutAmount,
+
 )
+
 from .types import Currency, PaymentStatus, PaymentType, WebhookEvent
 from .webhooks import WebhookHandler, verify_webhook
 
@@ -64,4 +76,14 @@ __all__ = [
     "RateLimitError",
     "ServerError",
     "WebhookVerificationError",
+    "ForbiddenError", 
+    "ConflictError",
+    "UnprocessableEntityError",
+    #payouts
+    "Payout",
+    "PayoutList", 
+    "PayoutFee",
+    "PayoutRecipient",
+    "PayoutChannel",
+    "PayoutAmount",
 ]
