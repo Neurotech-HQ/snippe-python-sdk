@@ -14,8 +14,8 @@ import io
 from snippe import Customer, Snippe
 from snippe.exceptions import SnippeError
 
-# Hardcoded API key for testing
-API_KEY = "snp_YOUR_API_KEY_HERE"
+# Read API key from environment variable (set SNIPPE_API_KEY before running)
+API_KEY = os.environ.get("SNIPPE_API_KEY", "")
 
 def open_image(filename):
     """Open image with default viewer."""
@@ -301,6 +301,10 @@ def test_list_payments():
 if __name__ == "__main__":
     print("🔧 SNIPPE SDK PAYMENT TEST")
     print("=" * 50)
+    if not API_KEY:
+        print("ERROR: SNIPPE_API_KEY environment variable is not set.")
+        print("  export SNIPPE_API_KEY=snp_your_key_here")
+        raise SystemExit(1)
     print(f"Using API key: {API_KEY[:10]}...{API_KEY[-10:]}")
     print()
     
