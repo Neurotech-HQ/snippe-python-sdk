@@ -1,5 +1,6 @@
 """Snippe Payment API client."""
 
+import os
 import uuid
 from typing import Any, Optional
 
@@ -64,7 +65,7 @@ class Snippe:
 
     def __init__(
         self,
-        api_key: str,
+        api_key: Optional[str] = None,
         base_url: Optional[str] = None,
         timeout: float = 30.0,
     ):
@@ -72,16 +73,24 @@ class Snippe:
         Initialize Snippe client.
 
         Args:
-            api_key: Your Snippe API key
+            api_key: Your Snippe API key. If not provided, reads from the
+                ``SNIPPE_API_KEY`` environment variable.
             base_url: Override the base URL (for testing)
             timeout: Request timeout in seconds
         """
-        self.api_key = api_key
+        resolved_key = api_key or os.environ.get("SNIPPE_API_KEY")
+        if not resolved_key:
+            raise AuthenticationError(
+                "No API key provided. Pass api_key= or set the SNIPPE_API_KEY environment variable.",
+                401,
+                "missing_api_key",
+            )
+        self.api_key = resolved_key
         self.base_url = base_url or self.BASE_URL
         self._client = httpx.Client(
             base_url=self.base_url,
             headers={
-                "Authorization": f"Bearer {api_key}",
+                "Authorization": f"Bearer {self.api_key}",
                 "Content-Type": "application/json",
             },
             timeout=timeout,
@@ -607,17 +616,31 @@ class AsyncSnippe:
 
     def __init__(
         self,
-        api_key: str,
+        api_key: Optional[str] = None,
         base_url: Optional[str] = None,
         timeout: float = 30.0,
     ):
-        """Initialize async Snippe client."""
-        self.api_key = api_key
+        """Initialize async Snippe client.
+
+        Args:
+            api_key: Your Snippe API key. If not provided, reads from the
+                ``SNIPPE_API_KEY`` environment variable.
+            base_url: Override the base URL (for testing)
+            timeout: Request timeout in seconds
+        """
+        resolved_key = api_key or os.environ.get("SNIPPE_API_KEY")
+        if not resolved_key:
+            raise AuthenticationError(
+                "No API key provided. Pass api_key= or set the SNIPPE_API_KEY environment variable.",
+                401,
+                "missing_api_key",
+            )
+        self.api_key = resolved_key
         self.base_url = base_url or self.BASE_URL
         self._client = httpx.AsyncClient(
             base_url=self.base_url,
             headers={
-                "Authorization": f"Bearer {api_key}",
+                "Authorization": f"Bearer {self.api_key}",
                 "Content-Type": "application/json",
             },
             timeout=timeout,
