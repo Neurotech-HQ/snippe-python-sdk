@@ -3,7 +3,7 @@
 import hashlib
 import hmac
 import time
-from typing import Optional
+from typing import Optional, Union
 
 from .exceptions import WebhookVerificationError
 from .models import WebhookPayload
@@ -47,12 +47,13 @@ class WebhookHandler:
         self.signing_key = signing_key
         self.tolerance = tolerance
 
-    def compute_signature(self, payload: str, timestamp: str) -> str:
+    def compute_signature(self, payload: Union[str, bytes], timestamp: str) -> str:
         """
         Combines timestamp and payload with a dot, then signs with the signing key.
 
         Args:
-            payload: Raw request body as string
+            payload: Raw request body — pass the EXACT bytes received (not a re-serialized
+                JSON string). Accepts both ``str`` and ``bytes``.
             timestamp: Unix timestamp from X-Webhook-Timestamp header
 
         Returns:
@@ -60,21 +61,22 @@ class WebhookHandler:
 
         Example:
             >>> signature = handler.compute_signature(
-            ...     payload='{"event":"payment.completed"}',
+            ...     payload=b'{"event":"payment.completed"}',
             ...     timestamp="1700000000"
             ... )
         """
-        message = f"{timestamp}.{payload}"
+        payload_bytes = payload.encode() if isinstance(payload, str) else payload
+        message = timestamp.encode() + b"." + payload_bytes
         signature = hmac.new(
             self.signing_key.encode(),
-            message.encode(),
+            message,
             hashlib.sha256,
         )
         return signature.hexdigest()
 
     def verify_signature(
         self,
-        payload: str,
+        payload: Union[str, bytes],
         signature: str,
         timestamp: str,
     ) -> bool:
@@ -103,18 +105,25 @@ class WebhookHandler:
             ... except WebhookVerificationError as e:
             ...     print(f"Verification failed: {e}")
         """
-        # Check timestamp to prevent replay attacks
+        if not signature:
+            raise WebhookVerificationError("Missing signature")
+        if not timestamp:
+            raise WebhookVerificationError("Missing timestamp")
+
         try:
-            ts = int(timestamp)
-        except (ValueError, TypeError):
+            ts = int(timestamp.strip())
+        except (ValueError, TypeError, AttributeError):
             raise WebhookVerificationError("Invalid timestamp")
 
         if abs(time.time() - ts) > self.tolerance:
             raise WebhookVerificationError("Webhook timestamp expired")
 
-        # Compute and compare signatures
-        expected = self.compute_signature(payload, timestamp)
-        if not hmac.compare_digest(expected, signature):
+        provided = signature.strip()
+        if provided.lower().startswith("sha256="):
+            provided = provided.split("=", 1)[1].strip()
+
+        expected = self.compute_signature(payload, timestamp.strip())
+        if not hmac.compare_digest(expected, provided):
             raise WebhookVerificationError("Invalid signature")
 
         return True
@@ -143,7 +152,7 @@ class WebhookHandler:
 
     def verify_and_parse(
         self,
-        body: str,
+        body: Union[str, bytes],
         signature: str,
         timestamp: str,
     ) -> WebhookPayload:
@@ -192,12 +201,13 @@ class WebhookHandler:
         import json
 
         self.verify_signature(body, signature, timestamp)
-        data = json.loads(body)
+        body_str = body.decode() if isinstance(body, bytes) else body
+        data = json.loads(body_str)
         return self.parse(data)
 
 
 def verify_webhook(
-    body: str,
+    body: Union[str, bytes],
     signature: str,
     timestamp: str,
     signing_key: str,

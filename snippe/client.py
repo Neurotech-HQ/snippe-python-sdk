@@ -101,7 +101,7 @@ class Snippe:
         try:
             data = response.json()
         except Exception:
-            data = {"message": response.text}
+            data = {"message": response.text[:500] if response.text else ""}
 
         if response.status_code == 200 or response.status_code == 201:
             return data.get("data", data)
@@ -651,7 +651,7 @@ class AsyncSnippe:
         try:
             data = response.json()
         except Exception:
-            data = {"message": response.text}
+            data = {"message": response.text[:500] if response.text else ""}
 
         if response.status_code == 200 or response.status_code == 201:
             return data.get("data", data)
@@ -664,6 +664,10 @@ class AsyncSnippe:
             raise AuthenticationError(message, code, error_code)
         elif code == 400:
             raise ValidationError(message, code, error_code)
+        elif code == 409:
+            raise ConflictError(message, code, error_code)
+        elif code == 422:
+            raise UnprocessableEntityError(message, code, error_code)
         elif code == 404:
             raise NotFoundError(message, code, error_code)
         elif code == 429:

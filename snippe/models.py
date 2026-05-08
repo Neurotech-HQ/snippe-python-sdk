@@ -274,7 +274,18 @@ class WebhookPayload:
 
     @classmethod
     def from_dict(cls, data: dict) -> "WebhookPayload":
-        """Create WebhookPayload from webhook data."""
+        """Create WebhookPayload from webhook data.
+
+        Raises:
+            ValidationError: If a required field is missing.
+        """
+        from .exceptions import ValidationError
+
+        required = ("event", "reference", "status", "amount", "created_at", "timestamp")
+        missing = [f for f in required if f not in data]
+        if missing:
+            raise ValidationError(f"Webhook payload missing required fields: {', '.join(missing)}")
+
         return cls(
             event=data["event"],
             reference=data["reference"],
