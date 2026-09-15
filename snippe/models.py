@@ -117,7 +117,8 @@ class Payment:
         customer: Customer information as dict
         metadata: Custom key-value pairs from request
         created_at: Creation timestamp (ISO 8601)
-    
+        failure_reason: Human-readable reason for failure (present when status is failed)
+
     Example:
         >>> payment = client.create_mobile_payment(...)
         >>> print(f"Ref: {payment.reference}, Status: {payment.status}")
@@ -143,6 +144,7 @@ class Payment:
     customer: Optional[dict] = None
     metadata: Optional[dict] = None
     created_at: Optional[str] = None
+    failure_reason: Optional[str] = None
 
     @classmethod
     def from_dict(cls, data: dict) -> "Payment":
@@ -174,6 +176,7 @@ class Payment:
             customer=data.get("customer"),
             metadata=data.get("metadata"),
             created_at=data.get("created_at"),
+            failure_reason=data.get("failure_reason"),
         )
 
 
@@ -252,6 +255,7 @@ class WebhookPayload:
         completed_at: When payment completed (if applicable)
         created_at: When payment was created
         timestamp: Webhook timestamp for verification
+        failure_reason: Human-readable reason for failure (present on payment.failed)
     
     Example:
         >>> payload = verify_webhook(body, signature, timestamp, signing_key)
@@ -271,6 +275,7 @@ class WebhookPayload:
     completed_at: Optional[str]
     created_at: str
     timestamp: int
+    failure_reason: Optional[str] = None
 
     @classmethod
     def from_dict(cls, data: dict) -> "WebhookPayload":
@@ -298,6 +303,7 @@ class WebhookPayload:
             completed_at=data.get("completed_at"),
             created_at=data["created_at"],
             timestamp=data["timestamp"],
+            failure_reason=data.get("failure_reason"),
         )
 
 
