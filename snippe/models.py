@@ -199,14 +199,19 @@ class PaymentList:
     payments: list[Payment]
     limit: int
     offset: int
+    total: int = 0
 
     @classmethod
     def from_dict(cls, data: dict) -> "PaymentList":
         """Create PaymentList from API response dict."""
+        # The API returns the list under "items" (same as payouts); "payments"
+        # is kept for older responses.
+        items_data = data.get("items") or data.get("payments") or []
         return cls(
-            payments=[Payment.from_dict(p) for p in data.get("payments", [])],
+            payments=[Payment.from_dict(p) for p in items_data],
             limit=data.get("limit", 20),
             offset=data.get("offset", 0),
+            total=data.get("total", 0),
         )
 
 
